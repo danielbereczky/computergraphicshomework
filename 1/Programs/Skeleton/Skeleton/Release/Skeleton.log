@@ -1,0 +1,18 @@
+﻿  Skeleton.cpp
+D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\Skeleton\framework.h(165,17): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  (compiling source file 'Skeleton.cpp')
+  
+D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\Skeleton\Skeleton.cpp(138,19): warning C4305: 'initializing': truncation from 'double' to 'float'
+D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\Skeleton\Skeleton.cpp(147,21): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\Skeleton\Skeleton.cpp(158,19): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\Skeleton\Skeleton.cpp(159,14): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\Skeleton\Skeleton.cpp(198,21): warning C4018: '<': signed/unsigned mismatch
+D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\Skeleton\Skeleton.cpp(260,26): warning C4305: 'argument': truncation from 'double' to 'GLclampf'
+D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\Skeleton\Skeleton.cpp(260,21): warning C4305: 'argument': truncation from 'double' to 'GLclampf'
+D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\Skeleton\Skeleton.cpp(260,16): warning C4305: 'argument': truncation from 'double' to 'GLclampf'
+D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\Skeleton\Skeleton.cpp(339,24): warning C4018: '<': signed/unsigned mismatch
+  Generating code
+  Previous IPDB and IOBJ mismatch, fall back to full compilation.
+  All 224 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  Skeleton.vcxproj -> D:\Dani\BME\sem4\computer_graphics\hf\1\Programs\Skeleton\bin\Skeleton.exe
