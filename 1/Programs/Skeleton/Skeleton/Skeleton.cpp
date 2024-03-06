@@ -44,6 +44,9 @@ operation programMode;
 
 std::vector<vec3> lineCreationTemp;
 
+boolean grabbedLine = false;
+int grabbedLineidx;
+
 std::string getProgramStatus(){
 	switch(programMode){
 	case addPoint:
@@ -137,14 +140,11 @@ public:
 	boolean isPointNearLine(vec3 point) {
 		float threshold = 0.01;
 		//line: (x1,y1) , (x2,y2) point: (x0,y0)
-		// |(y2-y1)*x0 - (x2-x1)*y0	+ x2*y1 - y2*x1|
-		float nominator = (p2.y - p1.y) * point.x - (p2.x - p1.x) * point.y + p2.x * p1.y - p2.y * p1.x;
+		// |(x2-x1)*(y1-y0) - (x1-x0)*(y2-y1)|
+		float nominator = fabs((p2.x-p1.x)*(p1.y-point.y)-(p1.x-point.x)*(p2.y-p1.y));
 		//making sure to return the absolute value of the nominator
-		if (nominator < 0) {
-			nominator *= -1;
-		}
 		//sqrt((y2-y1)^2 + (x2*x1)^2)
-		float denominator = sqrt(pow(p2.y - p1.y, 2) + pow(p2.x - p1.x, 2));
+		float denominator = sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
 
 		return (nominator / denominator) < threshold;
 	}
@@ -184,6 +184,16 @@ class LineCollection {
 	Object lines;
 	std::vector<Line> internalLineStorage;
 public:
+	std::vector<Line> getStoredLines() { return internalLineStorage; }
+	void refreshLines(){
+		//cleaning the vertex buffer
+		lines.Vtx().clear();
+		for (int i = 0; i < internalLineStorage.size();i++){
+			lines.Vtx().push_back(internalLineStorage.at(i).getp1());
+			lines.Vtx().push_back(internalLineStorage.at(i).getp2());
+		}
+		lines.updateGPU();
+	}
 	void addLine(Line newLine) {
 			lines.Vtx().push_back(newLine.getp1());
 			lines.Vtx().push_back(newLine.getp2());
@@ -193,16 +203,16 @@ public:
 	void Draw() {
 			lines.Draw(GL_LINES, vec3(0.0f, 1.0f, 1.0f));
 		}
-	Line findNearbyLine(vec3 point){
+	int findNearbyLine(vec3 point){
 		//iterating over every line stored so far
 		for (int i = 0; i < internalLineStorage.size(); i++){
-			//if we found a line near the point we just return it
+			//if we found a line near the point we return the index of it
 			if (internalLineStorage.at(i).isPointNearLine(point)){
-				return internalLineStorage.at(i);
+				return i;
 			}
 		}
-		//if not, we return a line with every point set to 0. a valid line will never have these coordinates, so this can be handled correctly.
-		return Line(vec3(0.0f, 0.0f, 1.0f), vec3(0.0f, 0.0f, 1.0f));
+		//if not, we return the index -1
+		return -1;
 	}
 };
 
@@ -309,6 +319,24 @@ public:
 		float cX = 2.0f * pX / winSize - 1;	// flip y axis
 		float cY = 1.0f - 2.0f * pY / winSize;
 		printf("Mouse moved to (%3.2f, %3.2f)\n", cX, cY);
+		//if we have a line grabbed, we do the following
+		if (grabbedLine && programMode == moveLine){
+			//debug
+			printf("LINE IS BEING MOVED\n");
+			//saving the line to be moved
+			Line tempLine = memLines->getStoredLines().at(grabbedLineidx);
+			//we pop the grabbed line idxth line from the line vector
+			memLines->getStoredLines().erase(memLines->getStoredLines().begin() + grabbedLineidx);
+			//transforming the line
+			tempLine.passThroughPoint(vec3(cX, cY, 1.0f));
+			//extending our transformed line to the vector
+			tempLine.extend();
+			memLines->addLine(tempLine);
+			//refreshing the line storage, transferring vertices to vbo
+			memLines->refreshLines();
+			//draw call
+			memLines->Draw();
+		}
 	}
 
 	// Mouse click event
@@ -327,6 +355,7 @@ public:
 
 		switch (button) {
 		case GLUT_LEFT_BUTTON:
+			//on left click
 			switch (state) {
 			case GLUT_DOWN:
 				switch (programMode) {
@@ -337,7 +366,6 @@ public:
 					break;
 				case addLine:
 					for (int i = 0; i < memPoints->getVtx().size();i++) {
-
 						if (memPoints->isNear(memPoints->getVtx().at(i), vec3(cX, cY, 1.0f))) {
 							//if our click is on a point and it is the first valid point we selected:
 							if (lineCreationTemp.size() == 0) {
@@ -357,9 +385,26 @@ public:
 						}
 					}
 					break;
+				case moveLine:
+					//check whether our click was near (or on) any of the stored lines
+					//if we got the idx -1, that means that the cursor is not on a line
+					grabbedLineidx = memLines->findNearbyLine(vec3(cX, cY, 1.0f));
+					if (grabbedLineidx != -1) {
+						printf("CLICKED ON LINE\n");
+						grabbedLine = true;
+					}
+					break;
 				}
 				break;
 			}
+			//on LMB RELEASE
+			case GLUT_UP:
+				switch (programMode) {
+				case moveLine:
+					//if the user released the mouse, we let go of the grabbed line
+					grabbedLine = false;
+				}
+				break;
 			break;
 		}
 	}
