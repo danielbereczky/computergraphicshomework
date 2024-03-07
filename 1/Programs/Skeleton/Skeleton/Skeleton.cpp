@@ -133,14 +133,19 @@ public:
 		printf("    Parametric: r(t) = (%.1f, %.1f) + (%.1f, %.1f)t\n", np1.x, np1.y, np2.x - np1.x, np2.y - np1.y);
 	};
 
-	vec3 intersect(Line l2) {
-		//function doesnt handle the case where the two lines are parallel, make sure no parallel line gets passed to it
-		// Solve for intersection point using determinant
-
-		float det = dirVec.x * l2.dirVec.y - dirVec.y * l2.dirVec.x; // 0 if the lines are equal -> division by zero!!!!
-		float t = (dirVec.x * (p1.y - l2.p1.y) - dirVec.y * (p1.x - l2.p1.x)) / det;
-		vec3 intersection = p1 + t * dirVec;
-		return intersection;
+	vec3 intersect(Line other){
+		//cross product of points on line 1
+		vec3 l1 = cross(this->getp1(), this->getp2());
+		//cross product of points on line 2
+		vec3 l2 = cross(other.getp1(), other.getp2());
+		//the solution is the cross product of the two cross products
+		vec3 solution = cross(l1, l2);
+		//no intersection if the z coordinate is 0 (we are in 2D)
+		if (solution.z == 0) {
+			return vec3(0.0f, 0.0f, 0.0f);
+		}
+		//if there is a solution, we divide x,y by the solutions z coordinate
+		return vec3(solution.x / solution.z, solution.y/ solution.z, 1.0f);
 	}
 
 	boolean isPointNearLine(vec3 point) {
@@ -395,7 +400,6 @@ std::vector<Line> lineIntersectTemp;
 						if (lineIntersectTemp.size() == 0) {
 							//if empty, the selected line can be pushed
 							lineIntersectTemp.push_back(memLines->getStoredLines().at(tempLineIdx));
-							printf("templines pushed\n");
 						}
 						if (lineIntersectTemp.size() == 1) {
 							// if we already have a line in our temp storage, we have to make sure to not to add the same line again
@@ -407,9 +411,12 @@ std::vector<Line> lineIntersectTemp;
 
 							//if the two lines are not the same, we can calculate the intersection
 							if (!pointsEqual(firstLinep1, newLinep1) && !pointsEqual(firstLinep2, newLinep2)) {
-								memPoints->addPoint(lineIntersectTemp.at(0).intersect(memLines->getStoredLines().at(tempLineIdx)));
-								lineIntersectTemp.clear();
-								printf("ADD INTERSECTION POINT\n");
+								vec3 intersectionPoint = lineIntersectTemp.at(0).intersect(memLines->getStoredLines().at(tempLineIdx));
+								//check whether we had an intersection or not
+								if (intersectionPoint.z != 0.0f){
+									memPoints->addPoint(intersectionPoint);
+									lineIntersectTemp.clear();
+								}
 							}
 						}
 					}
