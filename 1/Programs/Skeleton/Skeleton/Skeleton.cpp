@@ -44,8 +44,15 @@ operation programMode;
 
 std::vector<vec3> lineCreationTemp;
 
-boolean grabbedLine = false;
+bool pointsEqual(vec3 p1, vec3 p2){
+	return p1.x == p2.x && p1.y == p2.y;
+}
+
+//boolean grabbedLine;
 int grabbedLineidx;
+
+int selectedLineIdxA;
+int selectedLineIdxB;
 
 std::string getProgramStatus(){
 	switch(programMode){
@@ -120,7 +127,6 @@ public:
 		dirVec = vec3(np2.x - np1.x, np2.y - np1.y, 1);
 		//creating normal vector : (x,y) -> (-y,x)
 		vec3 normalVec = vec3(-dirVec.y, dirVec.x, 1);
-		//printf("    Implicit: %.1f x + %.1f y + %.1f = 0\n", normalVec.x, normalVec.y, -(vec3(np2.x - np1.x, np2.y - np1.y, 1)) * np1);
 		printf("    Implicit: %.1f x + %.1f y + %.1f = 0\n", normalVec.x, normalVec.y,-normalVec.x * p1.x -normalVec.y*p1.y);
 		//line going through points p and q
 		// r(t) = p + (q-p)*t
@@ -214,6 +220,13 @@ public:
 		//if not, we return the index -1
 		return -1;
 	}
+	void moveLine(int lineIdx, vec3 newPos) {
+		//only manipulating a line if we got a valid index as an input
+		if (lineIdx >= 0 && lineIdx < internalLineStorage.size()) {
+			internalLineStorage[lineIdx].passThroughPoint(newPos);
+			refreshLines();
+		}
+	}
 };
 
 	// vertex shader in GLSL: It is a Raw string (C++11) since it contains new line characters
@@ -240,6 +253,8 @@ public:
 		outColor = vec4(color, 1);	// computed color is the color of the primitive
 	}
 )";
+
+std::vector<Line> lineIntersectTemp;
 	//declaring objects
 	PointCollection* memPoints;
 	LineCollection* memLines;
@@ -255,11 +270,6 @@ public:
 		//point and line collection
 		memPoints = new PointCollection();
 		memLines = new LineCollection();
-
-		/*TESTING
-		Line testLine = Line(vec3(-0.1f, -0.1f, 1.0f), vec3(0.1f, 0.1f, 1.0f));
-		testLine.extend();
-		memLines->addLine(testLine);*/
 		
 		// create program for the GPU
 		gpuProgram.create(vertexSource, fragmentSource, "outColor");
@@ -320,22 +330,11 @@ public:
 		float cY = 1.0f - 2.0f * pY / winSize;
 		printf("Mouse moved to (%3.2f, %3.2f)\n", cX, cY);
 		//if we have a line grabbed, we do the following
-		if (grabbedLine && programMode == moveLine){
+		if (programMode == moveLine && grabbedLineidx != -1){
 			//debug
-			printf("LINE IS BEING MOVED\n");
-			//saving the line to be moved
-			Line tempLine = memLines->getStoredLines().at(grabbedLineidx);
-			//we pop the grabbed line idxth line from the line vector
-			memLines->getStoredLines().erase(memLines->getStoredLines().begin() + grabbedLineidx);
-			//transforming the line
-			tempLine.passThroughPoint(vec3(cX, cY, 1.0f));
-			//extending our transformed line to the vector
-			tempLine.extend();
-			memLines->addLine(tempLine);
-			//refreshing the line storage, transferring vertices to vbo
-			memLines->refreshLines();
-			//draw call
-			memLines->Draw();
+			memLines->moveLine(grabbedLineidx, vec3(cX, cY, 1.0f));
+			//redraw
+			glutPostRedisplay();
 		}
 	}
 
@@ -345,7 +344,6 @@ public:
 		float cX = 2.0f * pX / winSize - 1;	// flip y axis
 		float cY = 1.0f - 2.0f * pY / winSize;
 
-		
 		char* buttonStat;
 
 		switch (state) {
@@ -389,23 +387,35 @@ public:
 					//check whether our click was near (or on) any of the stored lines
 					//if we got the idx -1, that means that the cursor is not on a line
 					grabbedLineidx = memLines->findNearbyLine(vec3(cX, cY, 1.0f));
-					if (grabbedLineidx != -1) {
-						printf("CLICKED ON LINE\n");
-						grabbedLine = true;
+					break;
+				case intersectLines:
+					//if we found a line next to the mouse cursor:
+					int tempLineIdx = memLines->findNearbyLine(vec3(cX, cY, 1.0f));
+					if (tempLineIdx != -1) {
+						if (lineIntersectTemp.size() == 0) {
+							//if empty, the selected line can be pushed
+							lineIntersectTemp.push_back(memLines->getStoredLines().at(tempLineIdx));
+							printf("templines pushed\n");
+						}
+						if (lineIntersectTemp.size() == 1) {
+							// if we already have a line in our temp storage, we have to make sure to not to add the same line again
+							vec3 firstLinep1 = lineIntersectTemp.at(0).getp1();
+							vec3 firstLinep2 = lineIntersectTemp.at(0).getp2();
+
+							vec3 newLinep1 = memLines->getStoredLines().at(tempLineIdx).getp1();
+							vec3 newLinep2 = memLines->getStoredLines().at(tempLineIdx).getp2();
+
+							//if the two lines are not the same, we can calculate the intersection
+							if (!pointsEqual(firstLinep1, newLinep1) && !pointsEqual(firstLinep2, newLinep2)) {
+								memPoints->addPoint(lineIntersectTemp.at(0).intersect(memLines->getStoredLines().at(tempLineIdx)));
+								lineIntersectTemp.clear();
+								printf("ADD INTERSECTION POINT\n");
+							}
+						}
 					}
 					break;
 				}
-				break;
 			}
-			//on LMB RELEASE
-			case GLUT_UP:
-				switch (programMode) {
-				case moveLine:
-					//if the user released the mouse, we let go of the grabbed line
-					grabbedLine = false;
-				}
-				break;
-			break;
 		}
 	}
 
