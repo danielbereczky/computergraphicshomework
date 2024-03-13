@@ -48,7 +48,6 @@ bool pointsEqual(vec3 p1, vec3 p2){
 	return p1.x == p2.x && p1.y == p2.y;
 }
 
-//boolean grabbedLine;
 int grabbedLineidx;
 
 int selectedLineIdxA;
@@ -104,7 +103,7 @@ public:
 		points.Vtx().push_back(np);
 		points.updateGPU();
 	}
-	boolean isNear(vec3 p1, vec3 p2) {
+	bool isNear(vec3 p1, vec3 p2) {
 		return sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2)) < 0.01 ? true : false;
 	}
 	void Draw() {
@@ -148,7 +147,7 @@ public:
 		return vec3(solution.x / solution.z, solution.y/ solution.z, 1.0f);
 	}
 
-	boolean isPointNearLine(vec3 point) {
+	bool isPointNearLine(vec3 point) {
 		float threshold = 0.01;
 		//line: (x1,y1) , (x2,y2) point: (x0,y0)
 		// |(x2-x1)*(y1-y0) - (x1-x0)*(y2-y1)|
@@ -199,24 +198,25 @@ public:
 	void refreshLines(){
 		//cleaning the vertex buffer
 		lines.Vtx().clear();
-		for (int i = 0; i < internalLineStorage.size();i++){
+		for (size_t i = 0; i < internalLineStorage.size();i++){
 			lines.Vtx().push_back(internalLineStorage.at(i).getp1());
 			lines.Vtx().push_back(internalLineStorage.at(i).getp2());
 		}
 		lines.updateGPU();
 	}
 	void addLine(Line newLine) {
+			internalLineStorage.push_back(newLine);
 			lines.Vtx().push_back(newLine.getp1());
 			lines.Vtx().push_back(newLine.getp2());
-			internalLineStorage.push_back(newLine);
 			lines.updateGPU();
 		}
 	void Draw() {
+			//mode,color
 			lines.Draw(GL_LINES, vec3(0.0f, 1.0f, 1.0f));
 		}
 	int findNearbyLine(vec3 point){
 		//iterating over every line stored so far
-		for (int i = 0; i < internalLineStorage.size(); i++){
+		for (size_t i = 0; i < internalLineStorage.size(); i++){
 			//if we found a line near the point we return the index of it
 			if (internalLineStorage.at(i).isPointNearLine(point)){
 				return i;
@@ -225,7 +225,7 @@ public:
 		//if not, we return the index -1
 		return -1;
 	}
-	void moveLine(int lineIdx, vec3 newPos) {
+	void moveLine(size_t lineIdx, vec3 newPos) {
 		//only manipulating a line if we got a valid index as an input
 		if (lineIdx >= 0 && lineIdx < internalLineStorage.size()) {
 			internalLineStorage[lineIdx].passThroughPoint(newPos);
@@ -289,16 +289,14 @@ std::vector<Line> lineIntersectTemp;
 		int location = glGetUniformLocation(gpuProgram.getId(), "color");
 		glUniform3f(location, 1.0f, 0.0f, 0.0f); // 3 floats
 
-		float MVPtransf[4][4] = { 1, 0, 0, 0,    // MVP matrix, 
-								  0, 1, 0, 0,    // row-major!
-								  0, 0, 1, 0,
-								  0, 0, 0, 1 };
-
 		location = glGetUniformLocation(gpuProgram.getId(), "MVP");	// Get the GPU location of uniform variable MVP
 		//glUniformMatrix4fv(location, 1, GL_TRUE, &MVPtransf[0][0]);	// Load a 4x4 row-major float matrix to the specified location
 
-		memPoints->Draw();
+
 		memLines->Draw();
+		memPoints->Draw();
+
+
 		glutSwapBuffers(); // exchange buffers for double buffering
 	}
 
@@ -331,9 +329,11 @@ std::vector<Line> lineIntersectTemp;
 	// Move mouse with key pressed
 	void onMouseMotion(int pX, int pY) {	// pX, pY are the pixel coordinates of the cursor in the coordinate system of the operation system
 		// Convert to normalized device space
-		float cX = 2.0f * pX / winSize - 1;	// flip y axis
-		float cY = 1.0f - 2.0f * pY / winSize;
+		float cX = 2.0f * pX / winSize - 1.0f;	// flip y axis
+		float cY =  1 - 2.0f * pY / winSize;
+
 		printf("Mouse moved to (%3.2f, %3.2f)\n", cX, cY);
+
 		//if we have a line grabbed, we do the following
 		if (programMode == moveLine && grabbedLineidx != -1){
 			//debug
@@ -349,13 +349,6 @@ std::vector<Line> lineIntersectTemp;
 		float cX = 2.0f * pX / winSize - 1;	// flip y axis
 		float cY = 1.0f - 2.0f * pY / winSize;
 
-		char* buttonStat;
-
-		switch (state) {
-		case GLUT_DOWN: buttonStat = "pressed"; break;
-		case GLUT_UP:   buttonStat = "released"; break;
-		}
-
 		switch (button) {
 		case GLUT_LEFT_BUTTON:
 			//on left click
@@ -368,7 +361,7 @@ std::vector<Line> lineIntersectTemp;
 					memPoints->addPoint(vec3(cX, cY, 1.0f));
 					break;
 				case addLine:
-					for (int i = 0; i < memPoints->getVtx().size();i++) {
+					for (size_t i = 0; i < memPoints->getVtx().size();i++) {
 						if (memPoints->isNear(memPoints->getVtx().at(i), vec3(cX, cY, 1.0f))) {
 							//if our click is on a point and it is the first valid point we selected:
 							if (lineCreationTemp.size() == 0) {
@@ -393,6 +386,7 @@ std::vector<Line> lineIntersectTemp;
 					//if we got the idx -1, that means that the cursor is not on a line
 					grabbedLineidx = memLines->findNearbyLine(vec3(cX, cY, 1.0f));
 					break;
+
 				case intersectLines:
 					//if we found a line next to the mouse cursor:
 					int tempLineIdx = memLines->findNearbyLine(vec3(cX, cY, 1.0f));
@@ -428,5 +422,4 @@ std::vector<Line> lineIntersectTemp;
 
 	// Idle event indicating that some time elapsed: do animation here
 	void onIdle() {
-		long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
 	}
