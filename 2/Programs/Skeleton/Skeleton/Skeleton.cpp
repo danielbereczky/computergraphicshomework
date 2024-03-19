@@ -130,11 +130,7 @@ protected:
 	std::vector<vec2> interPointsCPU;
 	std::vector<vec2> controlPointsCPU;
 public:
-	virtual void addControlPoint(vec2 np) {
-		controlPointsCPU.push_back(np);
-		controlPoints.vtx.push_back(np);
-		controlPoints.updateGPU();
-	};
+	virtual void addControlPoint(vec2 np) = 0;
 	void movePoint(int idx,vec2 moveToP){
 		//avoids out of bounds
 		if (idx == -1) return;
@@ -149,10 +145,10 @@ public:
 
 	}
 	void Draw(){
-		interPoints.Draw(GL_LINE_STRIP, vec2(1.0f, 1.0f));
-		controlPoints.Draw(GL_POINTS, vec2(1.0f, 0.0f));
+		interPoints.Draw(GL_LINE_STRIP, vec3(1.0f, 1.0f,0.0f));
+		controlPoints.Draw(GL_POINTS, vec3(1.0f, 0.0f,0.0f));
 	}
-	//if there is already a point near 'inp', return its index. otherwise return -1
+	//if there is a control point near 'inp', return its index. otherwise return -1
 	int getNearbyPoint(vec2 inp){
 		float threshold = 0.01;
 		for (size_t i = 0; i < controlPointsCPU.size();i++) {
@@ -160,6 +156,7 @@ public:
 		}
 		return -1;
 	}
+	virtual void calculateInterPoints() = 0;
 };
 
 class LagrangeCurve : public Curve {
@@ -177,6 +174,31 @@ class LagrangeCurve : public Curve {
 		return rt;
 
 	}
+	void calculateKnotVals() {
+		knots.clear();
+		int n = controlPointsCPU.size();
+		float step = 1.0f / (n - 1);
+		for (int i = 0; i < n; i++) {
+			knots.push_back(i * step);
+		}
+	}
+	void calculateInterPoints() {
+		interPoints.vtx.clear();
+		interPointsCPU.clear();
+		for (int i = 0;i <= 100;i++) {
+			float f = (float)i / 100;
+			interPointsCPU.push_back(r(f));
+			interPoints.vtx.push_back(r(f));
+		}
+		interPoints.updateGPU();
+	}
+	virtual void addControlPoint(vec2 np){
+		controlPointsCPU.push_back(np);
+		controlPoints.vtx.push_back(np);
+		controlPoints.updateGPU();
+		this->calculateKnotVals();
+		this->calculateInterPoints();
+	}
 };
 
 
@@ -192,9 +214,32 @@ class BezierCurve : public Curve {
 	vec2 r(float t) {
 		vec2 rt(0.0f, 0.0f);
 		for (size_t i = 0; i < controlPointsCPU.size(); i++) {
-			rt = rt +  controlPointsCPU.at(i) * B(i, t);
+			rt = rt + controlPointsCPU.at(i) * B(i, t);
 		}
 		return rt;
+	}
+	void calculateInterPoints(){
+		interPoints.vtx.clear();
+		interPointsCPU.clear();
+		for (int i = 0;i <= 100;i++){
+			float f = (float)i / 100;
+			interPointsCPU.push_back(r(f));
+			interPoints.vtx.push_back(r(f));
+		}
+		interPoints.updateGPU();
+	}
+	virtual void addControlPoint(vec2 np) {
+		controlPointsCPU.push_back(np);
+		controlPoints.vtx.push_back(np);
+		controlPoints.updateGPU();
+		this->calculateInterPoints();
+	};
+};
+
+class CatmullRomSpline : public Curve {
+	std::vector<float> knots;
+	vec2 Hermite(vec2 p0, vec2 v0, float t0, vec2 p1, vec2 v1, float t1){
+		float a0 = 
 	}
 };
 
@@ -202,6 +247,16 @@ class BezierCurve : public Curve {
 
 Camera2D* camera;
 Curve* curCurve;
+
+//fns
+
+vec2 multiplyMatrixVector(const mat4 matrix, const vec2 vector) {
+	vec2 result;
+
+	result.x = matrix.m[0][0] * vector.x + matrix.m[1][0] * vector.y;
+	result.y = matrix.m[0][1] * vector.x + matrix.m[1][1] * vector.y;
+	return result;
+}
 
 // Initialization, create an OpenGL context
 void onInitialization() {
@@ -264,16 +319,21 @@ void onKeyboard(unsigned char key, int pX, int pY) {
 		break;
 	//camera manipulation
 	case('Z'):
-		camera->Zoom(1.1f);
+		camera->Zoom(1/1.1f);
+		glutPostRedisplay();
 		break;
 	case('z'):
-		camera->Zoom(1 / 1.1f);
+		camera->Zoom(1.1f);
+		glutPostRedisplay();
 		break;
 	case('P'):
 		camera->Pan(vec2(1.0f, 0.0f));
+		glutPostRedisplay();
 		break;
 	case('p'):
 		camera->Pan(vec2(-1.0f, 0.0f));
+		glutPostRedisplay();
+		break;
 	}
 }
 
@@ -286,8 +346,9 @@ void onMouseMotion(int pX, int pY) {	// pX, pY are the pixel coordinates of the 
 	// Convert to normalized device space
 	float cX = 2.0f * pX / winSize - 1;	// flip y axis
 	float cY = 1.0f - 2.0f * pY / winSize;
-	
+	vec2 curMousePt = multiplyMatrixVector(camera->pInv() * camera->Vinv(), vec2(cX, cY));
 	curCurve->movePoint(grabbedPtIdx, vec2(cX, cY));
+	curCurve->calculateInterPoints();
 	glutPostRedisplay();
 }
 
@@ -297,11 +358,13 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 	float cX = 2.0f * pX / winSize - 1;	
 	float cY = 1.0f - 2.0f * pY / winSize; // flip y axis
 
+	vec2 curMousePt = multiplyMatrixVector(camera->pInv() * camera->Vinv(), vec2(cX, cY));
+
 	switch (button) {
 	case GLUT_LEFT_BUTTON:
 		switch (state){
 		case GLUT_DOWN:
-			curCurve->addControlPoint(vec2(cX, cY));
+			curCurve->addControlPoint(vec2(cX,cY));
 			break;
 		case GLUT_UP:
 			break;
