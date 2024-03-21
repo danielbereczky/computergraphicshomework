@@ -67,6 +67,7 @@ GPUProgram gpuProgram; // vertex and fragment shaders
 enum operation {lagrange,bezier,catmullRom};
 operation programMode;
 int grabbedPtIdx;
+float catmullRomTension = 0.1f;
 
 //CLASSES
 
@@ -130,7 +131,7 @@ protected:
 	std::vector<vec2> interPointsCPU;
 	std::vector<vec2> controlPointsCPU;
 public:
-	virtual void addControlPoint(vec2 np) = 0;
+	virtual void addControlPoint(vec2 np,float t = 0) = 0;
 	void movePoint(int idx,vec2 moveToP){
 		//avoids out of bounds
 		if (idx == -1) return;
@@ -145,8 +146,12 @@ public:
 
 	}
 	void Draw(){
-		interPoints.Draw(GL_LINE_STRIP, vec3(1.0f, 1.0f,0.0f));
-		controlPoints.Draw(GL_POINTS, vec3(1.0f, 0.0f,0.0f));
+		if (controlPointsCPU.size() >= 2) {
+			interPoints.Draw(GL_LINE_STRIP, vec3(1.0f, 1.0f, 0.0f));
+		}
+		if (controlPointsCPU.size() > 0) {
+			controlPoints.Draw(GL_POINTS, vec3(1.0f, 0.0f, 0.0f));
+		}
 	}
 	//if there is a control point near 'inp', return its index. otherwise return -1
 	int getNearbyPoint(vec2 inp){
@@ -192,10 +197,12 @@ class LagrangeCurve : public Curve {
 		}
 		interPoints.updateGPU();
 	}
-	virtual void addControlPoint(vec2 np){
+	virtual void addControlPoint(vec2 np,float t = 0){
 		controlPointsCPU.push_back(np);
 		controlPoints.vtx.push_back(np);
 		controlPoints.updateGPU();
+		//maybe???
+		//knots.push_back((float)controlPointsCPU.size());
 		this->calculateKnotVals();
 		this->calculateInterPoints();
 	}
@@ -228,7 +235,7 @@ class BezierCurve : public Curve {
 		}
 		interPoints.updateGPU();
 	}
-	virtual void addControlPoint(vec2 np) {
+	virtual void addControlPoint(vec2 np,float t = 0) {
 		controlPointsCPU.push_back(np);
 		controlPoints.vtx.push_back(np);
 		controlPoints.updateGPU();
@@ -238,8 +245,51 @@ class BezierCurve : public Curve {
 
 class CatmullRomSpline : public Curve {
 	std::vector<float> knots;
-	vec2 Hermite(vec2 p0, vec2 v0, float t0, vec2 p1, vec2 v1, float t1){
-		float a0 = 
+public:
+	vec2 Hermite(vec2 p0, vec2 v0, float t0, vec2 p1, vec2 v1, float t1, float t) {
+		float dt = t1 - t0;
+		t -= t0;
+		float dttopow_2 = dt * dt;
+		float dttopow_3  = dttopow_2* dt;
+
+		vec2 a0 = p0, a1 = v0;
+		vec2 a2 = (p1 - p0) * 3 / dttopow_2 - (v1 + v0 * 2) / dt;
+		vec2 a3 = (p1 - p0) * 2 / dttopow_3 + (v1 + v0) / dttopow_2;
+
+		return ((a3 * t + a2) * t + a1) * t + a0;
+	}
+	
+	vec2 r(float t){
+		vec2 wP(0.0f, 0.0f);
+		for (size_t i = 0; i < controlPointsCPU.size() - 1; i++) {
+			if (knots.at(i) <= t && t <= knots.at(i + 1)) {
+				vec2 vP = (i > 0) ? (controlPointsCPU.at(i) - controlPointsCPU.at(i - 1)) * (1.0f / (knots.at(i) - knots.at(i - 1))) : vec2(0.0f, 0.0f);
+				vec2 vC = (controlPointsCPU.at(i + 1) - controlPointsCPU.at(i)) / (knots.at(i + 1) - knots.at(i));
+				vec2 vN = (i < controlPointsCPU.size() - 2) ? (controlPointsCPU.at(i + 2) - controlPointsCPU.at(i + 1)) / knots.at(i + 2) - knots.at(i + 1) : vec2(0.0f, 0.0f);
+				vec2 v0 = (vP + vC) * 0.5f;
+				vec2 v1 = (vC + vN) * 0.5f;
+				return Hermite(controlPointsCPU.at(i), v0, knots.at(i), controlPointsCPU.at(i + 1), v1, knots.at(i + 1), t);
+			}
+		}
+		return controlPointsCPU.at(0);
+	}
+
+	virtual void addControlPoint(vec2 np, float t){
+		knots.push_back((float)controlPointsCPU.size());
+		controlPointsCPU.push_back(np);
+		controlPoints.vtx.push_back(np);
+		controlPoints.updateGPU();
+		this->calculateInterPoints();
+	}
+	void calculateInterPoints() {
+		interPoints.vtx.clear();
+		interPointsCPU.clear();
+		for (int i = 0;i <= 100;i++) {
+			float f = (float)i / 100;
+			interPointsCPU.push_back(r(f));
+			interPoints.vtx.push_back(r(f));
+		}
+		interPoints.updateGPU();
 	}
 };
 
@@ -313,9 +363,9 @@ void onKeyboard(unsigned char key, int pX, int pY) {
 		break;
 	case('c'):
 		programMode = catmullRom;
-		glutPostRedisplay();
 		delete curCurve;
-		//--MISSING CATMULLROM CLASS--
+		glutPostRedisplay();
+		curCurve = new CatmullRomSpline();
 		break;
 	//camera manipulation
 	case('Z'):
@@ -333,6 +383,12 @@ void onKeyboard(unsigned char key, int pX, int pY) {
 	case('p'):
 		camera->Pan(vec2(-1.0f, 0.0f));
 		glutPostRedisplay();
+		break;
+	case('t'):
+		catmullRomTension -= 0.1f;
+		break;
+	case('T'):
+		catmullRomTension += 0.1f;
 		break;
 	}
 }
