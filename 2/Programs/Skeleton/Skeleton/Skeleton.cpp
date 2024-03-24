@@ -31,6 +31,11 @@
 // Tudomasul veszem, hogy a forrasmegjeloles kotelmenek megsertese eseten a hazifeladatra adhato pontokat
 // negativ elojellel szamoljak el es ezzel parhuzamosan eljaras is indul velem szemben.
 //=============================================================================================
+
+/*DISCLAIMER:
+A KOD IRASA SORAN par reszlet azaz MVP matrix kiszamitasa, szorzasa, Catmull-rom gorbeben a sebesseg vektorok szamitasa keszitese soran az alabbi videot hasznaltam segitsegkent:
+https://www.youtube.com/watch?v=XPuOS39qadE
+*/
 #include "framework.h"
 
 // vertex shader in GLSL: It is a Raw string (C++11) since it contains new line characters
@@ -69,6 +74,13 @@ operation programMode;
 int grabbedPtIdx;
 float catmullRomTension = 0.0f;
 
+void calculateKnotValues(std::vector<float> knots, int cPoints){
+	knots.clear();
+	for (int i = 0; i <= cPoints;i++){
+		//linearly mapping knot values from 0 to 1
+		knots.push_back((1 / cPoints ) * i);
+	}
+}
 
 class Camera2D {
 	vec2 wCenter = vec2(0.0f, 0.0f);
@@ -162,7 +174,7 @@ public:
 	int getNearbyPoint(vec2 inp){
 		vec4 inpT = vec4(inp.x, inp.y, 0, 1) * camera->pInv() * camera->Vinv();
 		vec2 inpT2D = vec2(inpT.x, inpT.y);
-		float threshold = 0.01;
+		float threshold = 0.1;
 		for (size_t i = 0; i < controlPointsCPU.size();i++) {
 			if (sqrt(pow(controlPointsCPU.at(i).x - inpT2D.x,2) + pow(controlPointsCPU.at(i).y - inpT2D.y, 2)) < threshold) return i;
 		}
@@ -293,6 +305,14 @@ public:
 		}
 		return controlPointsCPU.at(0);
 	}
+	void calculateKnotVals() {
+		knots.clear();
+		int n = controlPointsCPU.size();
+		float step = 1.0f / (n - 1);
+		for (int i = 0; i < n; i++) {
+			knots.push_back(i * step);
+		}
+	}
 
 	virtual void addControlPoint(vec2 np, float t) {
 		// Add the control point
@@ -300,16 +320,7 @@ public:
 		controlPointsCPU.push_back(vec2(newVert.x, newVert.y));
 		controlPoints.vtx.push_back(vec2(newVert.x, newVert.y));
 		controlPoints.updateGPU();
-
-		// Update the knot vector
-		if (controlPointsCPU.size() > 1) {
-			knots.push_back(knots.back() + 1.0f); //increasing knot value by 1 per cp
-		}
-		else {
-			knots.push_back(0.0f);  // the first cp gets a knot val of 0
-		}
-
-		// Recalculate interpolation points
+		this->calculateKnotVals();
 		this->calculateInterPoints();
 	}
 
@@ -318,7 +329,7 @@ public:
 		interPointsCPU.clear();
 		for (int i = 0;i <= 100;i++) {
 			float f = (float)i / 100;
-			float par = (knots.back() - knots.front())* f + knots.front();
+			float par = (knots.back() - knots.front()) * f + knots.front();
 			//interPointsCPU.push_back(r(par));
 			interPoints.vtx.push_back(r(par));
 		}
@@ -362,45 +373,41 @@ void onKeyboard(unsigned char key, int pX, int pY) {
 	case('l'):
 		//programMode = lagrange;
 		delete curCurve;
-		glutPostRedisplay();
 		curCurve = new LagrangeCurve();
 		break;
 	case('b'):
 		//programMode = bezier;
 		delete curCurve;
-		glutPostRedisplay();
 		curCurve = new BezierCurve();
 		break;
 	case('c'):
 		//programMode = catmullRom;
 		delete curCurve;
-		glutPostRedisplay();
 		curCurve = new CatmullRomSpline();
 		break;
 	//camera manipulation
-	case('Z'):
-		camera->Zoom(1/1.1f);
-		glutPostRedisplay();
-		break;
 	case('z'):
+		camera->Zoom(1/1.1f);
+		break;
+	case('Z'):
 		camera->Zoom(1.1f);
-		glutPostRedisplay();
 		break;
 	case('P'):
 		camera->Pan(vec2(1.0f, 0.0f));
-		glutPostRedisplay();
 		break;
 	case('p'):
 		camera->Pan(vec2(-1.0f, 0.0f));
-		glutPostRedisplay();
 		break;
 	case('t'):
 		catmullRomTension -= 0.1f;
+		curCurve->calculateInterPoints();
 		break;
 	case('T'):
 		catmullRomTension += 0.1f;
+		curCurve->calculateInterPoints();
 		break;
 	}
+	glutPostRedisplay();
 }
 
 // Key of ASCII code released
@@ -449,5 +456,4 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 
 // Idle event indicating that some time elapsed: do animation here
 void onIdle() {
-	long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
 }
