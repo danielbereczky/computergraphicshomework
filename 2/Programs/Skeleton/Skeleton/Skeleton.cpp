@@ -134,10 +134,12 @@ protected:
 public:
 	virtual void addControlPoint(vec2 np,float t = 0) = 0;
 	void movePoint(int idx,vec2 moveToP){
+		vec4 newVert = vec4(moveToP.x, moveToP.y, 0, 1) * camera->pInv() * camera->Vinv();
+		vec2 newVert2D = vec2(newVert.x, newVert.y);
 		//avoids out of bounds
 		if (idx == -1) return;
-		controlPointsCPU.at(idx).x = moveToP.x;
-		controlPointsCPU.at(idx).y = moveToP.y;
+		controlPointsCPU.at(idx).x = newVert2D.x;
+		controlPointsCPU.at(idx).y = newVert2D.y;
 		controlPoints.vtx.clear();
 		for (size_t i = 0; i < controlPointsCPU.size();i++){
 			controlPoints.vtx.push_back(vec2(controlPointsCPU.at(i).x, controlPointsCPU.at(i).y));
@@ -147,6 +149,8 @@ public:
 
 	}
 	void Draw(){
+		mat4 MVPMat = camera->V() * camera->P();
+		gpuProgram.setUniform(MVPMat,"MVP");
 		if (controlPointsCPU.size() >= 2) {
 			interPoints.Draw(GL_LINE_STRIP, vec3(1.0f, 1.0f, 0.0f));
 		}
@@ -156,9 +160,11 @@ public:
 	}
 	//if there is a control point near 'inp', return its index. otherwise return -1
 	int getNearbyPoint(vec2 inp){
+		vec4 inpT = vec4(inp.x, inp.y, 0, 1) * camera->pInv() * camera->Vinv();
+		vec2 inpT2D = vec2(inpT.x, inpT.y);
 		float threshold = 0.01;
 		for (size_t i = 0; i < controlPointsCPU.size();i++) {
-			if (sqrt(pow(controlPointsCPU.at(i).x - inp.x,2) + pow(controlPointsCPU.at(i).y - inp.y, 2)) < threshold) return i;
+			if (sqrt(pow(controlPointsCPU.at(i).x - inpT2D.x,2) + pow(controlPointsCPU.at(i).y - inpT2D.y, 2)) < threshold) return i;
 		}
 		return -1;
 	}
@@ -199,8 +205,9 @@ class LagrangeCurve : public Curve {
 		interPoints.updateGPU();
 	}
 	virtual void addControlPoint(vec2 np,float t = 0){
-		controlPointsCPU.push_back(np);
-		controlPoints.vtx.push_back(np);
+		vec4 newVert = vec4(np.x, np.y, 0, 1) * camera->pInv() * camera->Vinv();
+		controlPointsCPU.push_back(vec2(newVert.x,newVert.y));
+		controlPoints.vtx.push_back(vec2(newVert.x, newVert.y));
 		controlPoints.updateGPU();
 		//maybe???
 		//knots.push_back((float)controlPointsCPU.size());
@@ -237,8 +244,10 @@ class BezierCurve : public Curve {
 		interPoints.updateGPU();
 	}
 	virtual void addControlPoint(vec2 np,float t = 0) {
-		controlPointsCPU.push_back(np);
-		controlPoints.vtx.push_back(np);
+		vec4 newVert = vec4(np.x, np.y, 0, 1) * camera->pInv() * camera->Vinv();
+		controlPointsCPU.push_back(vec2(newVert.x, newVert.y));
+		controlPoints.vtx.push_back(vec2(newVert.x, newVert.y));
+		controlPoints.updateGPU();
 		controlPoints.updateGPU();
 		this->calculateInterPoints();
 	};
@@ -259,7 +268,6 @@ public:
 
 		return ((a3 * t + a2) * t + a1) * t + a0;
 	}
-
 
 	vec2 r(float t) {
 		vec2 v0, v1;
@@ -286,30 +294,19 @@ public:
 		return controlPointsCPU.at(0);
 	}
 
-
-	/*
-
-	virtual void addControlPoint(vec2 np, float t){
-		knots.push_back((float)controlPointsCPU.size());
-		controlPointsCPU.push_back(np);
-		controlPoints.vtx.push_back(np);
-		controlPoints.updateGPU();
-		this->calculateInterPoints();
-	}
-	*/
-
 	virtual void addControlPoint(vec2 np, float t) {
 		// Add the control point
-		controlPointsCPU.push_back(np);
-		controlPoints.vtx.push_back(np);
+		vec4 newVert = vec4(np.x, np.y, 0, 1) * camera->pInv() * camera->Vinv();
+		controlPointsCPU.push_back(vec2(newVert.x, newVert.y));
+		controlPoints.vtx.push_back(vec2(newVert.x, newVert.y));
 		controlPoints.updateGPU();
 
 		// Update the knot vector
 		if (controlPointsCPU.size() > 1) {
-			knots.push_back(knots.back() + 1.0f); // Incrementally increase the knot value for each new control point
+			knots.push_back(knots.back() + 1.0f); //increasing knot value by 1 per cp
 		}
 		else {
-			knots.push_back(0.0f); // Start with 0 for the first control point
+			knots.push_back(0.0f);  // the first cp gets a knot val of 0
 		}
 
 		// Recalculate interpolation points
@@ -329,20 +326,8 @@ public:
 	}
 };
 
-//objects
-
 
 Curve* curCurve;
-
-//fns
-
-vec2 multiplyMatrixVector(const mat4 matrix, const vec2 vector) {
-	vec2 result;
-
-	result.x = matrix.m[0][0] * vector.x + matrix.m[1][0] * vector.y;
-	result.y = matrix.m[0][1] * vector.x + matrix.m[1][1] * vector.y;
-	return result;
-}
 
 // Initialization, create an OpenGL context
 void onInitialization() {
@@ -350,7 +335,6 @@ void onInitialization() {
 	glLineWidth(2);
 	glViewport(0, 0, winSize, winSize);	//window 
 
-	programMode = bezier;
 	camera = new Camera2D();
 	//By default, the program starts in Bezier curve mode
 	curCurve = new BezierCurve();
@@ -361,19 +345,9 @@ void onInitialization() {
 
 // Window has become invalid: Redraw
 void onDisplay() {
-	glClearColor(0, 0, 0, 0);     // background color
+	//clear BG with black
+	glClearColor(0, 0, 0, 0);    
 	glClear(GL_COLOR_BUFFER_BIT); // clear frame buffer
-
-
-
-	//applying the current model-view projection matrix
-	int location = glGetUniformLocation(gpuProgram.getId(), "MVP");	// Get the GPU location of uniform variable MVP
-	//mat4 MVP = camera->P() * camera->V();
-	mat4 MVP = mat4(1, 0, 0, 0,
-					0, 1, 0, 0,
-					0, 0, 1, 0,
-					0, 0, 0, 1);
-	glUniformMatrix4fv(location, 1, GL_TRUE,&MVP.m[0][0]);
 
 	//draw curve
 	curCurve->Draw();
@@ -386,19 +360,19 @@ void onKeyboard(unsigned char key, int pX, int pY) {
 	switch (key) {
 	//changing curve modes
 	case('l'):
-		programMode = lagrange;
+		//programMode = lagrange;
 		delete curCurve;
 		glutPostRedisplay();
 		curCurve = new LagrangeCurve();
 		break;
 	case('b'):
-		programMode = bezier;
+		//programMode = bezier;
 		delete curCurve;
 		glutPostRedisplay();
 		curCurve = new BezierCurve();
 		break;
 	case('c'):
-		programMode = catmullRom;
+		//programMode = catmullRom;
 		delete curCurve;
 		glutPostRedisplay();
 		curCurve = new CatmullRomSpline();
@@ -438,7 +412,7 @@ void onMouseMotion(int pX, int pY) {	// pX, pY are the pixel coordinates of the 
 	// Convert to normalized device space
 	float cX = 2.0f * pX / winSize - 1;	// flip y axis
 	float cY = 1.0f - 2.0f * pY / winSize;
-	vec2 curMousePt = multiplyMatrixVector(camera->pInv() * camera->Vinv(), vec2(cX, cY));
+	
 	curCurve->movePoint(grabbedPtIdx, vec2(cX, cY));
 	curCurve->calculateInterPoints();
 	glutPostRedisplay();
@@ -449,8 +423,6 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 	// Convert to normalized device space
 	float cX = 2.0f * pX / winSize - 1;	
 	float cY = 1.0f - 2.0f * pY / winSize; // flip y axis
-
-	vec2 curMousePt = multiplyMatrixVector(camera->pInv() * camera->Vinv(), vec2(cX, cY));
 
 	switch (button) {
 	case GLUT_LEFT_BUTTON:
