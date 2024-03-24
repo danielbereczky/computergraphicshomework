@@ -81,6 +81,9 @@ void calculateKnotValues(std::vector<float> knots, int cPoints){
 		knots.push_back((1 / cPoints ) * i);
 	}
 }
+float calculatePointDistance(vec2 p1, vec2 p2){
+	return sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2));
+}
 
 class Camera2D {
 	vec2 wCenter = vec2(0.0f, 0.0f);
@@ -176,7 +179,7 @@ public:
 		vec2 inpT2D = vec2(inpT.x, inpT.y);
 		float threshold = 0.1;
 		for (size_t i = 0; i < controlPointsCPU.size();i++) {
-			if (sqrt(pow(controlPointsCPU.at(i).x - inpT2D.x,2) + pow(controlPointsCPU.at(i).y - inpT2D.y, 2)) < threshold) return i;
+			if (calculatePointDistance(controlPointsCPU.at(i), inpT2D) < threshold) return i;
 		}
 		return -1;
 	}
@@ -200,10 +203,22 @@ class LagrangeCurve : public Curve {
 	}
 	void calculateKnotVals() {
 		knots.clear();
-		int n = controlPointsCPU.size();
-		float step = 1.0f / (n - 1);
-		for (int i = 0; i < n; i++) {
-			knots.push_back(i * step);
+		float totalDist = 0.0f;
+		//calculating total distance between points
+		for (size_t i = 0; i < controlPointsCPU.size() - 1; ++i) {
+			totalDist += calculatePointDistance(controlPointsCPU.at(i + 1), controlPointsCPU.at(i));
+		}
+		for (size_t i = 0; i < controlPointsCPU.size();i++) {
+			float distFromStart = 0.0f;
+			// the first CP gets a knot value of 0
+			if (i == 0) knots.push_back(0.0f);
+			//else the knot value will be (distance to current CP/total length)
+			else {
+				for (size_t j = 0; j < i; j++) {
+					distFromStart += calculatePointDistance(controlPointsCPU.at(j + 1), controlPointsCPU.at(j));
+				}
+				knots.push_back(distFromStart / totalDist);
+			}
 		}
 	}
 	void calculateInterPoints() {
@@ -305,12 +320,24 @@ public:
 		}
 		return controlPointsCPU.at(0);
 	}
-	void calculateKnotVals() {
+	void calculateKnotVals(){
 		knots.clear();
-		int n = controlPointsCPU.size();
-		float step = 1.0f / (n - 1);
-		for (int i = 0; i < n; i++) {
-			knots.push_back(i * step);
+		float totalDist = 0.0f;
+		//calculating total distance between points
+		for (size_t i = 0; i < controlPointsCPU.size() - 1; ++i) {
+			totalDist += calculatePointDistance(controlPointsCPU.at(i + 1), controlPointsCPU.at(i));
+		}
+		for (size_t i = 0; i < controlPointsCPU.size();i++) {
+			float distFromStart = 0.0f;
+			// the first CP gets a knot value of 0
+			if (i ==  0) knots.push_back(0.0f);
+			//else the knot value will be (distance to current CP/total length)
+			else {
+				for (size_t j = 0; j < i; j++){
+					distFromStart += calculatePointDistance(controlPointsCPU.at(j + 1), controlPointsCPU.at(j));
+				}
+				knots.push_back(distFromStart / totalDist);
+			}
 		}
 	}
 
