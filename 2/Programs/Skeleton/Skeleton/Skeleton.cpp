@@ -147,6 +147,7 @@ protected:
 	std::vector<vec2> interPointsCPU;
 	std::vector<vec2> controlPointsCPU;
 public:
+	virtual ~Curve() = default;
 	virtual void addControlPoint(vec2 np,float t = 0) = 0;
 	void movePoint(int idx,vec2 moveToP){
 		vec4 newVert = vec4(moveToP.x, moveToP.y, 0, 1) * camera->pInv() * camera->Vinv();
@@ -191,7 +192,7 @@ class LagrangeCurve : public Curve {
 	float L(int i, float t) {
 		float Li = 1.0f;
 		for (size_t j = 0; j < controlPointsCPU.size();j++) {
-			if (j != i) Li *= (t - knots[j]) / (knots[i] - knots[j]);
+			if ((int)j != i) Li *= (t - knots[j]) / (knots[i] - knots[j]);
 		}
 		return Li;
 	}
@@ -248,7 +249,7 @@ class BezierCurve : public Curve {
 	float B(int i, float t) {
 		int n = controlPointsCPU.size() - 1;
 		float coef = 1;
-		for (size_t j = 1; j <= i;j++) {
+		for (size_t j = 1; (int)j <= i;j++) {
 			coef *= (float) (n - j + 1) / j;
 		}
 		return coef * pow(t, i) * pow(1 - t, n - i);
