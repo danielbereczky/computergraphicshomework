@@ -301,19 +301,24 @@ public:
 		vec2 vP, vC, vN;
 		for (size_t i = 0; i < controlPointsCPU.size() - 1; i++) {
 			if (knots.at(i) <= t && t <= knots.at(i + 1)) {
-				// Calculate tangent vectors
-				if (i > 0) {
-					v0 = (controlPointsCPU.at(i) - controlPointsCPU.at(i - 1)) * (1.0f - catmullRomTension)*0.5f  / (knots.at(i) - knots.at(i - 1));
+				//velocity vector of the current node.
+				vec2 vC = (controlPointsCPU[i + 1] - controlPointsCPU[i]) / (knots[i + 1] - knots[i]);
+				//if the parameter would be found between the starting cp and the one adjecent to it, we set the velocity vector to 0,0.
+				if (i > 0){
+					vP = (controlPointsCPU[i] - controlPointsCPU[i - 1]) / (knots[i] - knots[i - 1]);
 				}
 				else {
-					v0 = (controlPointsCPU.at(i + 1) - controlPointsCPU.at(i)) * (1.0f - catmullRomTension) *0.5f/ (knots.at(i + 1) - knots.at(i));
+					vP = vec2(0.0f, 0.0f);
 				}
-				if (i < controlPointsCPU.size() - 2) {
-					v1 = (controlPointsCPU.at(i + 2) - controlPointsCPU.at(i)) * (1.0f - catmullRomTension) *0.5f/ (knots.at(i + 2) - knots.at(i + 1));
+				//same thing. if the parameter is found between the last cp and the one before it, we set the velocity vector to 0,0
+				if (i < controlPointsCPU.size() - 2){
+					vN = (controlPointsCPU[i + 2] - controlPointsCPU[i + 1]) / (knots[i + 2] - knots[i + 1]);
 				}
 				else {
-					v1 = (controlPointsCPU.at(i + 1) - controlPointsCPU.at(i)) * (1.0f - catmullRomTension) *0.5f/ (knots.at(i + 1) - knots.at(i));
+					vN = vec2(0.0f, 0.0f);
 				}
+				v0 = (vP + vC) * (1 - catmullRomTension) * 0.5f;
+				v1 = (vC + vN) * (1 - catmullRomTension) * 0.5f;
 				// Hermite interpolation
 				return Hermite(controlPointsCPU.at(i), v0, knots.at(i), controlPointsCPU.at(i + 1), v1, knots.at(i + 1), t);
 			}
