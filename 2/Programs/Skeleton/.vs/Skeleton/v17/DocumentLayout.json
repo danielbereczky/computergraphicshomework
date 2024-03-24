@@ -5,9 +5,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{8B83E48F-726D-48E2-93F3-06B9AEE4BF72}|Skeleton\\Skeleton.vcxproj|D:\\Dani\\BME\\sem4\\computer_graphics\\hf\\2\\Programs\\Skeleton\\Skeleton\\Skeleton.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{8B83E48F-726D-48E2-93F3-06B9AEE4BF72}|Skeleton\\Skeleton.vcxproj|solutionrelative:Skeleton\\Skeleton.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{8B83E48F-726D-48E2-93F3-06B9AEE4BF72}|Skeleton\\Skeleton.vcxproj|C:\\PROGRAM FILES\\MICROSOFT VISUAL STUDIO\\2022\\COMMUNITY\\VC\\TOOLS\\MSVC\\14.39.33519\\INCLUDE\\XMEMORY||{3B902123-F8A7-4915-9F01-361F908088D0}|"
     }
   ],
   "DocumentGroupContainers": [
@@ -17,19 +14,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "xmemory",
-              "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.39.33519\\include\\xmemory",
-              "ToolTip": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.39.33519\\include\\xmemory",
-              "ViewState": "AQIAAMcCAAAAAAAAAAAlwNYCAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2024-03-21T09:01:54.778Z",
-              "EditorCaption": ""
-            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
@@ -38,7 +24,7 @@
               "RelativeDocumentMoniker": "Skeleton\\Skeleton.cpp",
               "ToolTip": "D:\\Dani\\BME\\sem4\\computer_graphics\\hf\\2\\Programs\\Skeleton\\Skeleton\\Skeleton.cpp",
               "RelativeToolTip": "Skeleton\\Skeleton.cpp",
-              "ViewState": "AQIAAJ4BAAAAAAAAAAAiwK8BAAAlAAAA",
+              "ViewState": "AQIAAD8AAAAAAAAAAAAswF4AAAARAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2024-03-02T08:16:03.943Z",
               "EditorCaption": ""

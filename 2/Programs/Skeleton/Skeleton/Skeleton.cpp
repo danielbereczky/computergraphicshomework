@@ -67,8 +67,32 @@ GPUProgram gpuProgram; // vertex and fragment shaders
 enum operation {lagrange,bezier,catmullRom};
 operation programMode;
 int grabbedPtIdx;
-float catmullRomTension = 0.1f;
+float catmullRomTension = 0.0f;
 
+
+class Camera2D {
+	vec2 wCenter = vec2(0.0f, 0.0f);
+	vec2 wSize = vec2(30, 30);
+public:
+	mat4 V() { return TranslateMatrix(-wCenter); }
+
+	mat4 P() //projection mx
+	{
+		return ScaleMatrix(vec2(2 / wSize.x, 2 / wSize.y));
+	}
+	mat4 Vinv() //inverse view mx
+	{
+		return TranslateMatrix(wCenter);
+	}
+	mat4 pInv() //inverse projection mx
+	{
+		return ScaleMatrix(vec2(wSize.x / 2, wSize.y / 2));
+	}
+
+	void Zoom(float s) { wSize = wSize * s; }
+	void Pan(vec2 t) { wCenter = wCenter + t; }
+};
+Camera2D* camera;
 //CLASSES
 
 class Object {
@@ -99,29 +123,6 @@ public:
 			glDrawArrays(type, 0, vtx.size());
 		}
 	}
-};
-
-class Camera2D{
-	vec2 wCenter = vec2(0.0f,0.0f);
-	vec2 wSize = vec2(30, 30);
-public:
-	mat4 V() { return TranslateMatrix(-wCenter); }
-
-	mat4 P() //projection mx
-	{
-		return ScaleMatrix(vec2(2 / wSize.x, 2 / wSize.y));
-	}
-	mat4 Vinv() //inverse view mx
-	{
-		return TranslateMatrix(wCenter);
-	}
-	mat4 pInv() //inverse projection mx
-	{
-		return ScaleMatrix(vec2(wSize.x / 2, wSize.y / 2));
-	}
-
-	void Zoom(float s) { wSize = wSize * s; }
-	void Pan(vec2 t) { wCenter = wCenter + t; }
 };
 //abstract base class for curves
 class Curve{
@@ -254,25 +255,39 @@ public:
 
 		vec2 a0 = p0, a1 = v0;
 		vec2 a2 = (p1 - p0) * 3 / dttopow_2 - (v1 + v0 * 2) / dt;
-		vec2 a3 = (p1 - p0) * 2 / dttopow_3 + (v1 + v0) / dttopow_2;
+		vec2 a3 = (p0 - p1) * 2 / dttopow_3 + (v1 + v0) / dttopow_2;
 
 		return ((a3 * t + a2) * t + a1) * t + a0;
 	}
-	
-	vec2 r(float t){
-		vec2 wP(0.0f, 0.0f);
+
+
+	vec2 r(float t) {
+		vec2 v0, v1;
+		vec2 vP, vC, vN;
 		for (size_t i = 0; i < controlPointsCPU.size() - 1; i++) {
 			if (knots.at(i) <= t && t <= knots.at(i + 1)) {
-				vec2 vP = (i > 0) ? (controlPointsCPU.at(i) - controlPointsCPU.at(i - 1)) * (1.0f / (knots.at(i) - knots.at(i - 1))) : vec2(0.0f, 0.0f);
-				vec2 vC = (controlPointsCPU.at(i + 1) - controlPointsCPU.at(i)) / (knots.at(i + 1) - knots.at(i));
-				vec2 vN = (i < controlPointsCPU.size() - 2) ? (controlPointsCPU.at(i + 2) - controlPointsCPU.at(i + 1)) / knots.at(i + 2) - knots.at(i + 1) : vec2(0.0f, 0.0f);
-				vec2 v0 = (vP + vC) * 0.5f;
-				vec2 v1 = (vC + vN) * 0.5f;
+				// Calculate tangent vectors
+				if (i > 0) {
+					v0 = (controlPointsCPU.at(i) - controlPointsCPU.at(i - 1)) * (1.0f - catmullRomTension)*0.5f  / (knots.at(i) - knots.at(i - 1));
+				}
+				else {
+					v0 = (controlPointsCPU.at(i + 1) - controlPointsCPU.at(i)) * (1.0f - catmullRomTension) *0.5f/ (knots.at(i + 1) - knots.at(i));
+				}
+				if (i < controlPointsCPU.size() - 2) {
+					v1 = (controlPointsCPU.at(i + 2) - controlPointsCPU.at(i)) * (1.0f - catmullRomTension) *0.5f/ (knots.at(i + 2) - knots.at(i + 1));
+				}
+				else {
+					v1 = (controlPointsCPU.at(i + 1) - controlPointsCPU.at(i)) * (1.0f - catmullRomTension) *0.5f/ (knots.at(i + 1) - knots.at(i));
+				}
+				// Hermite interpolation
 				return Hermite(controlPointsCPU.at(i), v0, knots.at(i), controlPointsCPU.at(i + 1), v1, knots.at(i + 1), t);
 			}
 		}
 		return controlPointsCPU.at(0);
 	}
+
+
+	/*
 
 	virtual void addControlPoint(vec2 np, float t){
 		knots.push_back((float)controlPointsCPU.size());
@@ -281,13 +296,34 @@ public:
 		controlPoints.updateGPU();
 		this->calculateInterPoints();
 	}
+	*/
+
+	virtual void addControlPoint(vec2 np, float t) {
+		// Add the control point
+		controlPointsCPU.push_back(np);
+		controlPoints.vtx.push_back(np);
+		controlPoints.updateGPU();
+
+		// Update the knot vector
+		if (controlPointsCPU.size() > 1) {
+			knots.push_back(knots.back() + 1.0f); // Incrementally increase the knot value for each new control point
+		}
+		else {
+			knots.push_back(0.0f); // Start with 0 for the first control point
+		}
+
+		// Recalculate interpolation points
+		this->calculateInterPoints();
+	}
+
 	void calculateInterPoints() {
 		interPoints.vtx.clear();
 		interPointsCPU.clear();
 		for (int i = 0;i <= 100;i++) {
 			float f = (float)i / 100;
-			interPointsCPU.push_back(r(f));
-			interPoints.vtx.push_back(r(f));
+			float par = (knots.back() - knots.front())* f + knots.front();
+			//interPointsCPU.push_back(r(par));
+			interPoints.vtx.push_back(r(par));
 		}
 		interPoints.updateGPU();
 	}
@@ -295,7 +331,7 @@ public:
 
 //objects
 
-Camera2D* camera;
+
 Curve* curCurve;
 
 //fns
