@@ -61,28 +61,131 @@ const char * const fragmentSource = R"(
 
 GPUProgram gpuProgram; // vertex and fragment shaders
 unsigned int vao;	   // virtual world on the GPU
+int windowSize = 600;
+int sideDistance = 40;
+//classes
+
+class Camera2D {
+	vec2 wCenter = vec2(20.0f, 30.0f);
+	vec2 wSize = vec2(150, 150);
+public:
+	mat4 V() { return TranslateMatrix(-wCenter); }
+
+	mat4 P() //projection mx
+	{
+		return ScaleMatrix(vec2(2 / wSize.x, 2 / wSize.y));
+	}
+	mat4 Vinv() //inverse view mx
+	{
+		return TranslateMatrix(wCenter);
+	}
+	mat4 pInv() //inverse projection mx
+	{
+		return ScaleMatrix(vec2(wSize.x / 2, wSize.y / 2));
+	}
+
+	void Zoom(float s) { wSize = wSize * s; }
+	void Pan(vec2 t) { wCenter = wCenter + t; }
+};
+Camera2D* camera;
+
+class Object {
+	unsigned int vbo, vao; // vertices on GPU
+public:
+	std::vector<vec2> vtx; // vertices on CPU
+	Object() {
+		//setting up vao
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+		//setting up vbo
+		glGenBuffers(1, &vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		//setting vbo attribs
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+	}
+	void updateGPU() {
+		//moving verts from cpu to gpu
+		glBindVertexArray(vao);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, vtx.size() * sizeof(vec2), &vtx[0], GL_DYNAMIC_DRAW);
+	}
+	void Draw(int type, vec3 color) {
+		if (vtx.size() > 0) {
+			glBindVertexArray(vao);
+			gpuProgram.setUniform(color, "color");
+			glDrawArrays(type, 0, vtx.size());
+		}
+	}
+};
+
+class Star {
+	Object squareGPUpoints;
+	std::vector<vec2> pointsCPU;
+public:
+	Star() {
+		//center
+		pointsCPU.push_back(vec2(50.0f, 30.0f));
+		//top
+		pointsCPU.push_back(vec2(50.0f, 30.0f + sideDistance));
+		//top right
+		pointsCPU.push_back(vec2(50.0f + 40.0f, 30.0f + 40.0f));
+		//right
+		pointsCPU.push_back(vec2(50.0f + sideDistance, 30.0f));
+		//bottom right
+		pointsCPU.push_back(vec2(50.0f + 40.0f, 30.0f - 40.0f));
+		//bottom
+		pointsCPU.push_back(vec2(50.0f, 30.0f - sideDistance));
+		//bottom left
+		pointsCPU.push_back(vec2(50.0f - 40.0f, 30.0f - 40.0f));
+		//left
+		pointsCPU.push_back(vec2(50.0f - sideDistance, 30.0f));
+		//top left
+		pointsCPU.push_back(vec2(50.0f - 40.0f, 30.0f + 40.0f));
+		//adding top again to complete the fan
+		pointsCPU.push_back(vec2(50.0f, 30.0f + sideDistance));
+		
+
+		//pushing to GPU
+		for (vec2 v : pointsCPU) {
+			squareGPUpoints.vtx.push_back(v);
+		}
+		squareGPUpoints.updateGPU();
+	}
+	void Draw() {
+		mat4 MVPMat = camera->V() * camera->P();
+		gpuProgram.setUniform(MVPMat, "MVP");
+		squareGPUpoints.Draw(GL_TRIANGLE_FAN,vec3(1.0f,1.0f,1.0f));
+	}
+	void adjustS(float adjustment){
+		//top
+		pointsCPU.at(1).y += adjustment;
+		pointsCPU.at(9).y += adjustment;
+		//right
+		pointsCPU.at(3).x += adjustment;
+		//bottom
+		pointsCPU.at(5).y -= adjustment;
+		//left
+		pointsCPU.at(7).x -= adjustment;
+		//updating verts on gpu
+
+		squareGPUpoints.vtx.clear();
+
+		for (vec2 v : pointsCPU) {
+			squareGPUpoints.vtx.push_back(v);
+		}
+		squareGPUpoints.updateGPU();
+	}
+};
+
+Star* star;
 
 // Initialization, create an OpenGL context
 void onInitialization() {
-	glViewport(0, 0, windowWidth, windowHeight);
+	glViewport(0, 0, windowSize, windowSize);
 
-	glGenVertexArrays(1, &vao);	// get 1 vao id
-	glBindVertexArray(vao);		// make it active
-
-	unsigned int vbo;		// vertex buffer object
-	glGenBuffers(1, &vbo);	// Generate 1 buffer
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	// Geometry with 24 bytes (6 floats or 3 x 2 coordinates)
-	float vertices[] = { -0.8f, -0.8f, -0.6f, 1.0f, 0.8f, -0.2f };
-	glBufferData(GL_ARRAY_BUFFER, 	// Copy to GPU target
-		sizeof(vertices),  // # bytes
-		vertices,	      	// address
-		GL_STATIC_DRAW);	// we do not change later
-
-	glEnableVertexAttribArray(0);  // AttribArray 0
-	glVertexAttribPointer(0,       // vbo -> AttribArray 0
-		2, GL_FLOAT, GL_FALSE, // two floats/attrib, not fixed-point
-		0, NULL); 		     // stride, offset: tightly packed
+	camera = new Camera2D();
+	star = new Star();
 
 	// create program for the GPU
 	gpuProgram.create(vertexSource, fragmentSource, "outColor");
@@ -92,28 +195,24 @@ void onInitialization() {
 void onDisplay() {
 	glClearColor(0, 0, 0, 0);     // background color
 	glClear(GL_COLOR_BUFFER_BIT); // clear frame buffer
-
-	// Set color to (0, 1, 0) = green
-	int location = glGetUniformLocation(gpuProgram.getId(), "color");
-	glUniform3f(location, 0.0f, 1.0f, 0.0f); // 3 floats
-
-	float MVPtransf[4][4] = { 1, 0, 0, 0,    // MVP matrix, 
-							  0, 1, 0, 0,    // row-major!
-							  0, 0, 1, 0,
-							  0, 0, 0, 1 };
-
-	location = glGetUniformLocation(gpuProgram.getId(), "MVP");	// Get the GPU location of uniform variable MVP
-	glUniformMatrix4fv(location, 1, GL_TRUE, &MVPtransf[0][0]);	// Load a 4x4 row-major float matrix to the specified location
-
-	glBindVertexArray(vao);  // Draw call
-	glDrawArrays(GL_TRIANGLES, 0 /*startIdx*/, 3 /*# Elements*/);
+	
+	star->Draw();
 
 	glutSwapBuffers(); // exchange buffers for double buffering
 }
 
 // Key of ASCII code pressed
 void onKeyboard(unsigned char key, int pX, int pY) {
-	if (key == 'd') glutPostRedisplay();         // if d, invalidate display, i.e. redraw
+	switch (key) {
+	case 'h':
+		star->adjustS(-10.0f);
+		glutPostRedisplay();
+		break;
+	case 'H':
+		star->adjustS(10.0f);
+		glutPostRedisplay();
+		break;
+	}
 }
 
 // Key of ASCII code released
