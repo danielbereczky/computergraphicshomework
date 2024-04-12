@@ -363,7 +363,6 @@ public:
 		for (int i = 0;i <= 100;i++) {
 			float f = (float)i / 100;
 			float par = (knots.back() - knots.front()) * f + knots.front();
-			//interPointsCPU.push_back(r(par));
 			interPoints.vtx.push_back(r(par));
 		}
 		interPoints.updateGPU();

@@ -1,18 +1,1 @@
-﻿  Skeleton.cpp
-D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\Skeleton\framework.h(165,17): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-  (compiling source file 'Skeleton.cpp')
-  
-D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\Skeleton\Skeleton.cpp(81,34): warning C4244: 'argument': conversion from 'int' to '_Ty', possible loss of data
-D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\Skeleton\Skeleton.cpp(81,34): warning C4244:         with
-D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\Skeleton\Skeleton.cpp(81,34): warning C4244:         [
-D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\Skeleton\Skeleton.cpp(81,34): warning C4244:             _Ty=float
-D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\Skeleton\Skeleton.cpp(81,34): warning C4244:         ]
-D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\Skeleton\Skeleton.cpp(85,13): warning C4244: 'return': conversion from 'double' to 'float', possible loss of data
-D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\Skeleton\Skeleton.cpp(181,19): warning C4305: 'initializing': truncation from 'double' to 'float'
-D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\Skeleton\Skeleton.cpp(255,27): warning C4244: 'return': conversion from 'double' to 'float', possible loss of data
-  Generating code
-  0 of 241 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
-  Finished generating code
-  Skeleton.vcxproj -> D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\bin\Skeleton.exe
+﻿  Skeleton.vcxproj -> D:\Dani\BME\sem4\computer_graphics\hf\2\Programs\Skeleton\bin\Skeleton.exe
