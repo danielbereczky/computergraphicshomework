@@ -5,6 +5,10 @@
     {
       "AbsoluteMoniker": "D:0:0:{8B83E48F-726D-48E2-93F3-06B9AEE4BF72}|Skeleton\\Skeleton.vcxproj|D:\\Dani\\BME\\sem4\\computer_graphics\\hf\\3\\Programs\\Skeleton\\Skeleton\\Skeleton.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{8B83E48F-726D-48E2-93F3-06B9AEE4BF72}|Skeleton\\Skeleton.vcxproj|solutionrelative:Skeleton\\Skeleton.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8B83E48F-726D-48E2-93F3-06B9AEE4BF72}|Skeleton\\Skeleton.vcxproj|D:\\Dani\\BME\\sem4\\computer_graphics\\hf\\3\\Programs\\Skeleton\\Skeleton\\framework.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{8B83E48F-726D-48E2-93F3-06B9AEE4BF72}|Skeleton\\Skeleton.vcxproj|solutionrelative:Skeleton\\framework.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     }
   ],
   "DocumentGroupContainers": [
@@ -14,8 +18,21 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "framework.h",
+              "DocumentMoniker": "D:\\Dani\\BME\\sem4\\computer_graphics\\hf\\3\\Programs\\Skeleton\\Skeleton\\framework.h",
+              "RelativeDocumentMoniker": "Skeleton\\framework.h",
+              "ToolTip": "D:\\Dani\\BME\\sem4\\computer_graphics\\hf\\3\\Programs\\Skeleton\\Skeleton\\framework.h",
+              "RelativeToolTip": "Skeleton\\framework.h",
+              "ViewState": "AQIAAMYAAAAAAAAAAAAjwMwAAAAIAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2024-04-13T20:18:12.482Z",
+              "EditorCaption": ""
+            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
@@ -24,9 +41,9 @@
               "RelativeDocumentMoniker": "Skeleton\\Skeleton.cpp",
               "ToolTip": "D:\\Dani\\BME\\sem4\\computer_graphics\\hf\\3\\Programs\\Skeleton\\Skeleton\\Skeleton.cpp",
               "RelativeToolTip": "Skeleton\\Skeleton.cpp",
-              "ViewState": "AQIAAL8AAAAAAAAAAAASwNEAAAAIAAAA",
+              "ViewState": "AQIAANUAAAAAAAAAAAAmwNwAAAAlAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2024-03-02T08:16:03.943Z",
+              "WhenOpened": "2024-04-12T11:52:00.284Z",
               "EditorCaption": ""
             }
           ]
