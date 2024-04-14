@@ -149,8 +149,9 @@ std::vector<vec4> createCustomTexture(int size) {
 			float normalizedY = 1.0f - 2.0f * y / (size - 1);
 
 			int pixelInCircles = 0;
-			for each (Circle c in circles) {
-				if (c.In(vec2(normalizedX, normalizedY))) {
+
+			for (unsigned int s = 0; s < circles.size();s++){
+				if (circles.at(s).In(vec2(normalizedX, normalizedY)) == true) {
 					pixelInCircles++;
 				}
 			}
@@ -170,8 +171,6 @@ std::vector<vec4> createCustomTexture(int size) {
 	}
 	return image;
 }
-
-
 
 class Object {
 	//vbo[0] : vertices
@@ -226,8 +225,6 @@ public:
 		tex = new Texture(size, size, createCustomTexture(size),texMode);
 	}
 };
-
-
 
 class Star {
 	Object squareGPUpoints;
@@ -314,12 +311,12 @@ public:
 			0, 0, 1, 0,
 			0, 0, 0, 1);
 
-		mat4 translation(1, 0, 0, 0,
+		mat4 translate(1, 0, 0, 0,
 			0, 1, 0, 0,
 			0, 0, 0, 0,
 			translation.x, translation.y, 0, 1);
 
-		return rotation * translation;
+		return rotation * translate;
 	}
 	void adjustTexSize(int siz){
 		squareGPUpoints.createnewTexture(siz);
@@ -390,34 +387,17 @@ void onKeyboardUp(unsigned char key, int pX, int pY) {
 // Move mouse with key pressed
 void onMouseMotion(int pX, int pY) {	// pX, pY are the pixel coordinates of the cursor in the coordinate system of the operation system
 	// Convert to normalized device space
-	float cX = 2.0f * pX / windowWidth - 1;	// flip y axis
-	float cY = 1.0f - 2.0f * pY / windowHeight;
-	printf("Mouse moved to (%3.2f, %3.2f)\n", cX, cY);
 }
 
 // Mouse click event
 void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel coordinates of the cursor in the coordinate system of the operation system
 	// Convert to normalized device space
-	float cX = 2.0f * pX / windowWidth - 1;	// flip y axis
-	float cY = 1.0f - 2.0f * pY / windowHeight;
-
-	char * buttonStat;
-	switch (state) {
-	case GLUT_DOWN: buttonStat = "pressed"; break;
-	case GLUT_UP:   buttonStat = "released"; break;
-	}
-
-	switch (button) {
-	case GLUT_LEFT_BUTTON:   printf("Left button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY);   break;
-	case GLUT_MIDDLE_BUTTON: printf("Middle button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY); break;
-	case GLUT_RIGHT_BUTTON:  printf("Right button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY);  break;
-	}
 }
 
 // Idle event indicating that some time elapsed: do animation here
 void onIdle() {
-	long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
-	float elapsedSec = time / 1000.0f;
+	//long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
+	//float elapsedSec = time / 1000.0f;
 	//star->Animate(elapsedSec);
 	glutPostRedisplay();
 }
