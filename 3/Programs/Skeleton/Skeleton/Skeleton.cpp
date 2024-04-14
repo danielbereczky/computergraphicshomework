@@ -69,6 +69,8 @@ int windowSize = 600;
 float sideDistance = 40.0f;
 int texSize = 300;
 int texMode = GL_LINEAR;
+bool animated = false;
+long animStart;
 //classes
 
 class Camera2D {
@@ -213,8 +215,6 @@ public:
 	}
 	void Draw(int type, vec3 color) {
 		if (vtx.size() > 0) {
-			mat4 MVPMat = camera->V() * camera->P();
-			gpuProgram.setUniform(MVPMat, "MVP");
 			gpuProgram.setUniform(*tex, "textureUnit");
 			glBindVertexArray(vao);
 			glDrawArrays(type, 0, vtx.size());
@@ -231,9 +231,11 @@ class Star {
 	std::vector<vec2> pointsCPU;
 	//std::vector<vec2> uvs;
 	vec2 uvs[10];
-	vec2 translation = vec2(50.0f, 30.0f);
 	float sideLen = 40.0f;
+	//for rotating around origin and rotating around itself
+	vec2 translation = vec2(50.0f, 30.0f);
 	float phi;
+	float sx, sy;
 public:
 	Star(int w, int h, const std::vector<vec4> image) :squareGPUpoints(w, h, image) {
 		phi = 0.0f;
@@ -278,10 +280,6 @@ public:
 		}
 		squareGPUpoints.updateGPU();
 	}
-	void Draw() {
-		squareGPUpoints.Draw(GL_TRIANGLE_FAN, vec3(1.0f, 1.0f, 1.0f));
-	}
-
 	void adjustS(float adjustment) {
 		//top
 		pointsCPU.at(1).y += adjustment;
@@ -302,21 +300,23 @@ public:
 		squareGPUpoints.updateGPU();
 	}
 	void Animate(float r) {
-		translation = vec2(0.0f, 0.0f);
 		phi = r;
 	}
 	mat4 starM() {
-		mat4 rotation(cosf(phi), sinf(phi), 0, 0,
-			-sinf(phi), cosf(phi), 0, 0,
-			0, 0, 1, 0,
-			0, 0, 0, 1);
+	
+		mat4 rotation = RotationMatrix(phi / 2, vec3(0.0f, 0.0f, 1.0f));
 
-		mat4 translate(1, 0, 0, 0,
-			0, 1, 0, 0,
-			0, 0, 0, 0,
-			translation.x, translation.y, 0, 1);
+		mat4 translationMat = TranslateMatrix(-1.0f * translation);
+		mat4 translationMatInv = TranslateMatrix(translation);
 
-		return rotation * translate;
+		return translationMat * rotation * translationMatInv;
+
+	}
+
+	void Draw() {
+		mat4 MVPMat =  starM() * camera->V() * camera->P() * RotationMatrix( phi / 2, vec3(0.0f, 0.0f, 1.0f));
+		gpuProgram.setUniform(MVPMat, "MVP");
+		squareGPUpoints.Draw(GL_TRIANGLE_FAN, vec3(1.0f, 1.0f, 1.0f));
 	}
 	void adjustTexSize(int siz){
 		squareGPUpoints.createnewTexture(siz);
@@ -377,6 +377,12 @@ void onKeyboard(unsigned char key, int pX, int pY) {
 		texMode = GL_LINEAR;
 		star->adjustTexSize(texSize);
 		break;
+	case 'a':
+		if (!animated) {
+			animated = true;
+			animStart = glutGet(GLUT_ELAPSED_TIME);
+		}
+		break;
 	}
 }
 
@@ -396,8 +402,12 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 
 // Idle event indicating that some time elapsed: do animation here
 void onIdle() {
-	//long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
-	//float elapsedSec = time / 1000.0f;
-	//star->Animate(elapsedSec);
+	long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
+	float elapsedSec = time / 1000.0f;
+	if (animated) {
+		//phi parameter is the angle to represent the 0.2^-1 / sec revolutions
+		//5 sec -> 360 degrees -> 72 deg /s 
+		star->Animate((elapsedSec - animStart / 1000.0f) * 1.256637f);
+	}
 	glutPostRedisplay();
 }
